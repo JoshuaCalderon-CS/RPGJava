@@ -2,31 +2,40 @@ package Game;
 
 import javax.swing.JFrame;
 
+import Game.core.Room;
+import Game.entities.PlayerState;
+import Game.ui.MenuPanel;
+import Game.ui.gameGUI;
+
 public class GameLauncher {
 
     public static Room[][] map;
 
     public static void main(String[] args) {
-
-    	JFrame frame = new JFrame("Menu");
-    	frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-
-    	int width = 400;
-    	int height = 300;
-
-    	frame.setSize(width, height);
-
-    	// centers it on screen
-    	frame.setLocationRelativeTo(null);
-
-    	frame.setContentPane(new MenuPanel(frame));
-
-    	frame.setVisible(true);
+    	showMenu();
     }
 
-    public static void start() {
+    	public static void showMenu() {
 
-        PlayerState player = new PlayerState();
+    	    JFrame frame = new JFrame("Menu");
+    	    frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
+    	    int width = 400;
+    	    int height = 300;
+
+    	    frame.setSize(width, height);
+    	    frame.setLocationRelativeTo(null);
+
+    	    frame.setContentPane(new MenuPanel(frame));
+    	    frame.setVisible(true);
+    	}
+
+    public static void start(PlayerClass chosenClass) {
+
+    	PlayerState player = new PlayerState();
+
+    	player.playerClass = chosenClass; // change this later for testing
+    	player.applyClassStats();
 
         Room r0 = new Room(0);
         Room r1 = new Room(1);
@@ -46,6 +55,8 @@ public class GameLauncher {
 
         player.gridX = 1;
         player.gridY = 1;
+        
+        
 
         new gameGUI(r4, player, 0, 0, "start");
     }

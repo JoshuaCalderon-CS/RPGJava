@@ -1,7 +1,14 @@
-package Game;
+package Game.ui;
 
+import javax.swing.ImageIcon;
 import javax.swing.JFrame;
+
+import Game.core.Room;
+import Game.entities.PlayerState;
+import Game.GameLauncher;
+
 import java.awt.Dimension;
+import java.awt.Image;
 import java.awt.Toolkit;
 
 public class gameGUI extends JFrame {
@@ -9,6 +16,9 @@ public class gameGUI extends JFrame {
 
     private Room currentRoom;
     private PlayerState player;
+    private Image swordIcon;
+    private Image bowIcon;
+    private Image axeIcon;
 
     private static final int WIDTH = 400;
     private static final int HEIGHT = 300;
@@ -17,13 +27,18 @@ public class gameGUI extends JFrame {
     public gameGUI(Room room, PlayerState player, int x, int y, String direction) {
         this.currentRoom = room;
         this.player = player;
+        
+        swordIcon = new ImageIcon(getClass().getResource("/assets/tool_sword_b.png")).getImage();
+        bowIcon = new ImageIcon(getClass().getResource("/assets/tool_bow.png")).getImage();
+        axeIcon = new ImageIcon(getClass().getResource("/assets/tool_axe.png")).getImage();
 
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(WIDTH, HEIGHT);
 
         setTitle("Room " + room.id);
 
-        gamePanel panel = new gamePanel(this, room, player);
+        gamePanel panel = new gamePanel(this, room, player,
+        	    swordIcon, bowIcon, axeIcon);
 
         setContentPane(panel);
 
@@ -54,15 +69,15 @@ public class gameGUI extends JFrame {
         if (direction.equals("up")) player.gridY--;
         if (direction.equals("down")) player.gridY++;
 
-        // 2. wrap around 
+        // 2. wrap around (if using looping world)
         player.gridX = (player.gridX + 3) % 3;
         player.gridY = (player.gridY + 3) % 3;
 
-        // 3. Get next room
+        // 3. GET NEXT ROOM (THIS IS WHERE YOUR LINE GOES)
         Room next = GameLauncher.map[player.gridY][player.gridX];
 
         // 4. create new state for spawn position
-        PlayerState state = new PlayerState();
+        PlayerState state = player;
         state.gridX = player.gridX;
         state.gridY = player.gridY;
 
@@ -91,4 +106,5 @@ public class gameGUI extends JFrame {
         new gameGUI(next, state, this.getX(), this.getY(), direction);
         this.dispose();
     }
+    
 }

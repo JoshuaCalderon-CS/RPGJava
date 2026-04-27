@@ -1,4 +1,4 @@
-package Game;
+package Game.core;
 
 import java.awt.Color;
 import java.util.ArrayList;
@@ -6,6 +6,7 @@ import java.util.ArrayList;
 public class Room {
 
     public int id;
+    public boolean visited;
 
     // visuals
     public Color backgroundColor = Color.WHITE;
@@ -23,5 +24,9 @@ public class Room {
 
     public Room(int id) {
         this.id = id;
+    }
+    public void reset() {
+        enemies.clear();   // if room owns enemies
+        visited = false;   // example flag
     }
 }
