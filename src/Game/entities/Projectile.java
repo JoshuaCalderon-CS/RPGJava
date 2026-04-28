@@ -48,7 +48,7 @@ public class Projectile {
 
         } else {
 
-            // 🧨 PLAYER BULLETS DIE ON EXIT
+            //PLAYER BULLETS DIE ON EXIT
             if (x < 0 || y < 0 || x > width || y > height) {
                 active = false;
             }

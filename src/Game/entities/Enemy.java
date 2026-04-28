@@ -139,7 +139,7 @@ public class Enemy {
                     y += (dy / dist) * speed;
                 }
 
-                // OPTIONAL: slight “wobble” so it feels alive
+                //slight “wobble” so it feels alive
                 x += Math.sin(System.currentTimeMillis() * 0.005 + y) * 0.3;
                 y += Math.cos(System.currentTimeMillis() * 0.005 + x) * 0.3;
             }

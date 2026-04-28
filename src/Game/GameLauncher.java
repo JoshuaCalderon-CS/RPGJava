@@ -34,7 +34,7 @@ public class GameLauncher {
 
     	PlayerState player = new PlayerState();
 
-    	player.playerClass = chosenClass; // change this later for testing
+    	player.playerClass = chosenClass; 
     	player.applyClassStats();
 
         Room r0 = new Room(0);
