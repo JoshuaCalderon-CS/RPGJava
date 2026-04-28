@@ -42,12 +42,15 @@ public class gamePanel extends JPanel {
     private int lastDy = 0;
     private java.util.ArrayList<Projectile> enemyProjectiles = new java.util.ArrayList<>();
     private long lastEnemyShot = 0;
-    private long enemyShootCooldown = 600; // adjust difficulty
+    private long enemyShootCooldown = 1500; // adjust difficulty
 	private long shootCooldown = 400; // ms (change this to balance fire rate)
+	private long lastDashTime = 0;
+	private long dashCooldown = 1000; // 1 second
     private static final int PLAYER_SIZE = 50;
     private static final int W = 400;
     private static final int H = 300;
     private long lastKnockbackTime = 0;
+    int padding = 5;
     private double distance(int x1, int y1, int x2, int y2) {
         int dx = x1 - x2;
         int dy = y1 - y2;
@@ -66,7 +69,25 @@ public class gamePanel extends JPanel {
         setFocusable(true);
 
         int move = 10;
-        
+        getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
+        .put(KeyStroke.getKeyStroke("pressed E"), "dash");
+
+	    getActionMap().put("dash", new AbstractAction() {
+	        public void actionPerformed(ActionEvent e) {
+	            System.out.println("DASH PRESSED");
+	            performDash();
+	        }
+	    });
+        getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
+        .put(KeyStroke.getKeyStroke(KeyEvent.VK_Q, 0), "immunity");
+
+        getActionMap().put("immunity", new AbstractAction() {
+            public void actionPerformed(ActionEvent e) {
+                if (player.abilities.contains("IMMUNITY")) {
+                    player.activateImmunity(3000); // 3 seconds
+                }
+            }
+        });
         getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
         .put(KeyStroke.getKeyStroke(KeyEvent.VK_H, 0), "heal");
 
@@ -162,6 +183,27 @@ public class gamePanel extends JPanel {
                 repaint();
             }
         });
+        getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
+        .put(KeyStroke.getKeyStroke(KeyEvent.VK_1, 0), "choose1");
+
+        getActionMap().put("choose1", new AbstractAction() {
+            public void actionPerformed(ActionEvent e) {
+                if (player.choosingAbility) {
+                    player.chooseAbility(player.pendingChoices[0]);
+                }
+            }
+        });
+
+        getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
+        .put(KeyStroke.getKeyStroke(KeyEvent.VK_2, 0), "choose2");
+
+        getActionMap().put("choose2", new AbstractAction() {
+            public void actionPerformed(ActionEvent e) {
+                if (player.choosingAbility) {
+                    player.chooseAbility(player.pendingChoices[1]);
+                }
+            }
+        });
         javax.swing.SwingUtilities.invokeLater(() -> {
             spawnEnemies();
         });
@@ -171,6 +213,15 @@ public class gamePanel extends JPanel {
                 repaint();   
                 return;
             }
+        	if (player.choosingAbility) {
+        	    repaint();
+        	    return;
+        	}
+        	long now = System.currentTimeMillis();
+
+        	if (player.isImmune && now > player.immunityEndTime) {
+        	    player.isImmune = false;
+        	}
         	enemyShoot();
         	for (Projectile p : enemyProjectiles) {
         	    p.update();
@@ -183,7 +234,12 @@ public class gamePanel extends JPanel {
         	    Rectangle playerBox = new Rectangle(player.x, player.y, PLAYER_SIZE, PLAYER_SIZE);
 
         	    if (projBox.intersects(playerBox)) {
-        	        player.hp -= 5;
+        	    	if (player.abilities.contains("IMMUNITY")) {
+        	    	    // later add cooldown, for now just reduce damage
+        	    		player.takeDamage(2);
+        	    	} else {
+        	    		player.takeDamage(5);
+        	    	}
         	        p.active = false;
         	    }
         	}
@@ -361,15 +417,18 @@ public class gamePanel extends JPanel {
                     applyKnockback(e);
                     lastKnockbackTime = nowe;
                 }
-
-                player.hp -= 5;
-
+                if (player.abilities.contains("IMMUNITY")) {
+                    // later add cooldown, for now just reduce damage
+                	player.takeDamage(2);
+                } else {
+                	player.takeDamage(5);
+                }
                 // ALL enemies can damage on contact
                 long now = System.currentTimeMillis();
 
                 if (e.type == EnemyType.SLIME) {
                     if (now - e.lastHitTime > 600) {
-                        player.hp -= 3;
+                    	player.takeDamage(3);
                         e.lastHitTime = now;
                     }
                 }
@@ -467,7 +526,7 @@ public class gamePanel extends JPanel {
         e.y -= ny * force;
     }
     private void clampEnemyToScreen(Enemy e) {
-        int padding = 0; // or 5 if you want a small margin
+        int padding = 0;
 
         if (e.x < padding) e.x = padding;
         if (e.y < padding) e.y = padding;
@@ -480,22 +539,57 @@ public class gamePanel extends JPanel {
             e.y = getHeight() - e.size - padding;
         }
     }
+    private void performDash() {
+    	System.out.println("DASH PRESSED");
+        if (!player.abilities.contains("DASH")) return;
+        
+        long now = System.currentTimeMillis();
+        if (now - lastDashTime < dashCooldown) return;
+
+        lastDashTime = now;
+
+        int dashDistance = 60;
+
+        int dx = lastDx * dashDistance;
+        int dy = lastDy * dashDistance;
+
+        int newX = player.x + dx;
+        int newY = player.y + dy;
+
+        int padding = 5;
+
+        newX = Math.max(padding, Math.min(newX, getWidth() - PLAYER_SIZE - padding));
+        newY = Math.max(padding, Math.min(newY, getHeight() - PLAYER_SIZE - padding));
+
+        player.x = newX;
+        player.y = newY;
+    }
+    private String getAbilityDisplayText(String ability) {
+
+        switch (ability) {
+            case "IMMUNITY":
+                return "IMMUNITY (Q to activate - 3s invincibility)";
+            case "DASH":
+                return "DASH (E to use - quick movement)";
+            case "BIG_SLASH":
+                return "BIG SLASH (SPACE upgrade - heavy attack)";
+            case "EARTHSHATTER":
+                return "EARTHSHATTER (future key - AoE stun)";
+            default:
+                return ability;
+        }
+    }
     @Override
     public void addNotify() {
         super.addNotify();
 
-        InputMap im = getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
-        ActionMap am = getRootPane().getActionMap();
+        getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
+            .put(KeyStroke.getKeyStroke(KeyEvent.VK_R, 0), "restart");
 
-        im.put(KeyStroke.getKeyStroke(KeyEvent.VK_R, 0), "restart");
-
-        am.put("restart", new AbstractAction() {
+        getActionMap().put("restart", new AbstractAction() {
             public void actionPerformed(ActionEvent e) {
-
-                System.out.println("R pressed");
-
                 if (!gameOver) return;
-
+                System.out.println("R pressed");
                 parent.dispose();
                 GameLauncher.showMenu();
             }
@@ -590,6 +684,27 @@ public class gamePanel extends JPanel {
         g.drawString("XP: " + player.xp, 10, 50);
         g.drawString("Press T to shoot (Archer only)", 10, 70);
 
+        if (player.choosingAbility) {
+
+            g.setColor(new Color(0, 0, 0, 200));
+            g.fillRect(0, 0, getWidth(), getHeight());
+
+            g.setColor(Color.WHITE);
+            g.setFont(new Font("Arial", Font.BOLD, 20));
+            g.drawString("Choose Ability:", 100, 100);
+
+            g.setFont(new Font("Arial", Font.PLAIN, 16));
+
+            // Ability 1
+            g.drawString("1: IMMUNITY", 100, 140);
+            g.drawString("Q to activate (3s invincibility)", 120, 160);
+
+            // Ability 2
+            g.drawString("2: DASH", 100, 200);
+            g.drawString("E to use (quick movement)", 120, 220);
+            return;
+        }
+        
         if (gameOver) {
             showGameOver(g);
         }
