@@ -36,7 +36,7 @@ public class GameLauncher {
 
     	player.playerClass = chosenClass; 
     	player.applyClassStats();
-
+// refers to the Rooms in the game \\
         Room r0 = new Room(0);
         Room r1 = new Room(1);
         Room r2 = new Room(2);

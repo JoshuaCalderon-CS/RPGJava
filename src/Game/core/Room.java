@@ -9,7 +9,7 @@ public class Room {
     public boolean visited;
 
     // visuals
-    public Color backgroundColor = Color.WHITE;
+    public Color backgroundColor = Color.GRAY;
 
     // gameplay elements (expand later)
     public ArrayList<String> enemies = new ArrayList<>();
