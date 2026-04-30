@@ -1,3 +1,10 @@
+/***************************************************
+Carlos Lopez
+Michael Coker
+Joshua Calderon
+4/20/26
+Final Project RPGJava
+ ***************************************************/
 package Game.ui;
 
 import javax.swing.JPanel;
@@ -23,40 +30,64 @@ import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Image;
 import java.awt.Rectangle;
+import java.util.ArrayList;
 
 public class gamePanel extends JPanel {
 	private static final long serialVersionUID = 1L;
+	
+	// references
     private PlayerState player;
     private gameGUI parent;
     private Room room;
+    
+    // game state flags
     private boolean gameOver = false;
-    private java.util.ArrayList<Enemy> enemies = new java.util.ArrayList<>();
+    
+    // tracking
+    private ArrayList<Enemy> enemies = new ArrayList<>();
     private long lastEnemyHit = 0;
 	private gameGUI gameGUI;
+	
+	// player icons
 	private Image swordIcon;
 	private Image bowIcon;
 	private Image axeIcon;
-	private java.util.ArrayList<Projectile> projectiles = new java.util.ArrayList<>();
+	
+	// player projectiles
+	private ArrayList<Projectile> projectiles = new ArrayList<>();
 	private long lastShotTime = 0;
+	private long shootCooldown = 400; // ms 
+	
+	// gets pervious direction for shooting
 	private int lastDx = 1;
     private int lastDy = 0;
-    private java.util.ArrayList<Projectile> enemyProjectiles = new java.util.ArrayList<>();
+    
+    // enemy projectiles
+    private ArrayList<Projectile> enemyProjectiles = new ArrayList<>();
     private long lastEnemyShot = 0;
     private long enemyShootCooldown = 1500; // adjust difficulty
-	private long shootCooldown = 400; // ms (change this to balance fire rate)
+    
+	// dash mechanic
 	private long lastDashTime = 0;
 	private long dashCooldown = 1000; // 1 second
+	
+	// player size and window size
     private static final int PLAYER_SIZE = 50;
     private static final int W = 400;
     private static final int H = 300;
+    
+    // knockback
     private long lastKnockbackTime = 0;
     int padding = 5;
+    
+    // helper method
     private double distance(int x1, int y1, int x2, int y2) {
         int dx = x1 - x2;
         int dy = y1 - y2;
         return Math.sqrt(dx * dx + dy * dy);
     }
-
+    
+    // Constructor: keybinds, gameloop, enemy spawn
     public gamePanel(gameGUI parent, Room room, PlayerState player,
             Image swordIcon, Image bowIcon, Image axeIcon) {
     	this.parent = parent;
@@ -68,19 +99,19 @@ public class gamePanel extends JPanel {
     	this.axeIcon = axeIcon;
         setFocusable(true);
 
-        int move = 10;
+        int move = 10; // movement speed
+        
+        // dash ability
         getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
         .put(KeyStroke.getKeyStroke("pressed E"), "dash");
-
 	    getActionMap().put("dash", new AbstractAction() {
 	        public void actionPerformed(ActionEvent e) {
-	            System.out.println("DASH PRESSED");
 	            performDash();
 	        }
 	    });
+	    // immunity ability
         getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
         .put(KeyStroke.getKeyStroke(KeyEvent.VK_Q, 0), "immunity");
-
         getActionMap().put("immunity", new AbstractAction() {
             public void actionPerformed(ActionEvent e) {
                 if (player.abilities.contains("IMMUNITY")) {
@@ -88,25 +119,9 @@ public class gamePanel extends JPanel {
                 }
             }
         });
+        // archer class shoot keybinding
         getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
-        .put(KeyStroke.getKeyStroke(KeyEvent.VK_H, 0), "heal");
-
-        getActionMap().put("heal", new AbstractAction() {
-        public void actionPerformed(ActionEvent e) {
-            player.heal(20);
-            repaint();
-        	}
-        });
-        getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
-        .put(KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, 0), "attack");
-
-        getActionMap().put("attack", new AbstractAction() {
-        public void actionPerformed(ActionEvent e) {
-            attack();
-        	}
-        });
-        getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
-        .put(KeyStroke.getKeyStroke(KeyEvent.VK_T, 0), "shoot");
+        .put(KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, 0), "shoot");
 
         getActionMap().put("shoot", new AbstractAction() {
             public void actionPerformed(ActionEvent e) {
@@ -183,9 +198,9 @@ public class gamePanel extends JPanel {
                 repaint();
             }
         });
+        // ability selection
         getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
         .put(KeyStroke.getKeyStroke(KeyEvent.VK_1, 0), "choose1");
-
         getActionMap().put("choose1", new AbstractAction() {
             public void actionPerformed(ActionEvent e) {
                 if (player.choosingAbility) {
@@ -193,41 +208,36 @@ public class gamePanel extends JPanel {
                 }
             }
         });
-
-        getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
-        .put(KeyStroke.getKeyStroke(KeyEvent.VK_2, 0), "choose2");
-
-        getActionMap().put("choose2", new AbstractAction() {
-            public void actionPerformed(ActionEvent e) {
-                if (player.choosingAbility) {
-                    player.chooseAbility(player.pendingChoices[1]);
-                }
-            }
-        });
+        // spawns the enemes after UI is made
         javax.swing.SwingUtilities.invokeLater(() -> {
             spawnEnemies();
         });
+        //game loop
         new javax.swing.Timer(50, event -> {
         	checkPlayerDeath();
         	if (gameOver) {
                 repaint();   
                 return;
             }
+        	// pauses game during ability selection
         	if (player.choosingAbility) {
         	    repaint();
         	    return;
         	}
         	long now = System.currentTimeMillis();
-
+        	
+        	// ends immunity after given time
         	if (player.isImmune && now > player.immunityEndTime) {
         	    player.isImmune = false;
         	}
+        	// enemy shooting behavior
         	enemyShoot();
+        	// updates enemy projectiles
         	for (Projectile p : enemyProjectiles) {
         	    p.update();
         	}
-
         	enemyProjectiles.removeIf(p -> !p.active);
+        	// check if enemy projectiles hit player
         	for (Projectile p : enemyProjectiles) {
 
         		Rectangle projBox = new Rectangle((int)p.x, (int)p.y, p.size, p.size);
@@ -243,10 +253,12 @@ public class gamePanel extends JPanel {
         	        p.active = false;
         	    }
         	}
+        	// update player projectiles
         	for (Projectile p : projectiles) {
         	    p.update();
         	}
         	projectiles.removeIf(p -> !p.active);
+        	// check if projectile hits enemies
         	for (Projectile p : projectiles) {
 
         		Rectangle projBox = new Rectangle((int)p.x, (int)p.y, p.size, p.size);
@@ -265,7 +277,7 @@ public class gamePanel extends JPanel {
         	    }
         	}
         	
-            // update enemies OR death animation
+            // update enemies, if alive or dead
             for (Enemy enemy : enemies) {
             	
             	if (enemy.dead) {
@@ -279,8 +291,10 @@ public class gamePanel extends JPanel {
             		clampEnemyToScreen(enemy); 
             	}
             }
+            // keeps enemies from stacking
             resolveEnemyCollisions();
-
+            
+            //removes enemies after fade out animation
             enemies.removeIf(enemy -> enemy.dead && enemy.alpha <= 0);
             
             handleEnemyDeaths();
@@ -289,6 +303,7 @@ public class gamePanel extends JPanel {
 
         }).start();
     }
+    // method to prevent enemies from overlapping
     private void resolveEnemyCollisions() {
 
         for (int i = 0; i < enemies.size(); i++) {
@@ -308,13 +323,13 @@ public class gamePanel extends JPanel {
                 int dy = ay - by;
 
                 int dist = (int)Math.sqrt(dx * dx + dy * dy);
-
+                
                 int minDist = (a.size + b.size) / 2;
 
                 if (dist == 0) dist = 1;
 
+                // if enemies overlap push them apart
                 if (dist < minDist) {
-
                     double pushX = (dx / (double)dist);
                     double pushY = (dy / (double)dist);
 
@@ -329,25 +344,27 @@ public class gamePanel extends JPanel {
             }
         }
     }
+    //spawns enemies in randomly and makes sure not to spawn on player
     private void spawnEnemies() {
 
         enemies.clear();
 
         int width = getWidth();
         int height = getHeight();
-
+        
+        // pool of enemy types
         EnemyType[] pool = {
             EnemyType.MELEE,
             EnemyType.SHOOTER,
             EnemyType.SLIME
         };
 
-        int safeDistance = 80;
+        int safeDistance = 80; // min distance from player
 
         for (int i = 0; i < 3; i++) {
 
             int x, y;
-
+            // keeps generating positions till far enough from player
             do {
                 x = (int)(Math.random() * (width - 50));
                 y = (int)(Math.random() * (height - 50));
@@ -355,6 +372,7 @@ public class gamePanel extends JPanel {
 
             EnemyType type = pool[(int)(Math.random() * pool.length)];
 
+            // different enemies have different stats
             if (type == EnemyType.SLIME) {
                 enemies.add(new Enemy(x, y, EnemyType.SLIME, 60, 30));
             } else if (type == EnemyType.SHOOTER) {
@@ -364,16 +382,19 @@ public class gamePanel extends JPanel {
             }
         }
     }
+    // enemy ranged attacks
     private void enemyShoot() {
 
         long now = System.currentTimeMillis();
+        //cooldown between shots
         if (now - lastEnemyShot < enemyShootCooldown) return;
 
         lastEnemyShot = now;
 
         for (int i = 0; i < enemies.size(); i++) {
             Enemy e = enemies.get(i);
-
+            
+            //ensures only shooter type enemies can shoot
             if (e.type != EnemyType.SHOOTER || e.dead) continue;
 
             int ex = (int)e.x;
@@ -393,11 +414,13 @@ public class gamePanel extends JPanel {
             );
         }
     }
+    // centers player when entering new rooms
     public void centerPlayer() {
         player.x = (getWidth() - PLAYER_SIZE) / 2;
         player.y = (getHeight() - PLAYER_SIZE) / 2;
         repaint();
     }
+    //handles both player and enemy contact: damage and knockback
     private void checkCombat() {
 
         Rectangle playerBox = new Rectangle(player.x, player.y, PLAYER_SIZE, PLAYER_SIZE);
@@ -412,24 +435,16 @@ public class gamePanel extends JPanel {
             long nowe = System.currentTimeMillis();
 
             if (playerBox.intersects(enemyBox)) {
-
+            	
+            	// applys knockback with cooldown
                 if (nowe - lastKnockbackTime > 200) { // 200ms cooldown
                     applyKnockback(e);
                     lastKnockbackTime = nowe;
                 }
-                if (player.abilities.contains("IMMUNITY")) {
-                    // later add cooldown, for now just reduce damage
-                	player.takeDamage(2);
-                } else {
-                	player.takeDamage(5);
-                }
-                // ALL enemies can damage on contact
-                long now = System.currentTimeMillis();
-
                 if (e.type == EnemyType.SLIME) {
-                    if (now - e.lastHitTime > 600) {
+                    if (nowe - e.lastHitTime > 600) {
                     	player.takeDamage(3);
-                        e.lastHitTime = now;
+                        e.lastHitTime = nowe;
                     }
                 }
 
@@ -440,26 +455,14 @@ public class gamePanel extends JPanel {
             }
             }
         }
-    private void attack() {
-
-        Rectangle playerBox = new Rectangle(player.x, player.y, 50, 50);
-
-        for (int i = 0; i < enemies.size(); i++) {
-            Enemy e = enemies.get(i);
-
-            Rectangle enemyBox = new Rectangle((int)e.x, (int)e.y, e.size, e.size);
-
-            if (playerBox.intersects(enemyBox)) {
-            	e.takeDamage(player.attack, enemies, player);
-                break; // only hit one enemy per attack
-            }
-        }
-    }
+    // shoots projectile, archer only, inverted
     private void shoot() {
 
         if (player.playerClass != PlayerClass.ARCHER) return;
 
         long now = System.currentTimeMillis();
+        
+        // shot cooldown
         if (now - lastShotTime < shootCooldown) return;
 
         lastShotTime = now;
@@ -475,6 +478,8 @@ public class gamePanel extends JPanel {
 
         projectiles.add(new Projectile(px, py, dx, dy, ProjectileType.PLAYER));
     }
+    
+    // draws overlay when lost
     private void showGameOver(Graphics g) {
 
         g.setColor(new Color(0, 0, 0, 180)); // dark overlay
@@ -487,23 +492,26 @@ public class gamePanel extends JPanel {
         g.setFont(new Font("Arial", Font.PLAIN, 18));
         g.drawString("Press R to restart", getWidth() / 2 - 90, getHeight() / 2 + 40);
     }
+    // enemies give xp and removes them
     private void handleEnemyDeaths() {
 
     	for (int i = 0; i < enemies.size(); i++) {
     	    Enemy e = enemies.get(i);
             if (e.dead && e.hp <= 0) {
-                e.kill(player);
+                e.kill(player); // gives xp
             }
         }
 
         enemies.removeIf(e -> e.dead && e.alpha <= 0);
     }
+    // checks if player died
     private void checkPlayerDeath() {
         if (player.hp <= 0) {
             player.hp = 0;
             gameOver = true;
         }
     }
+    // knockback between enemies and player
     private void applyKnockback(Enemy e) {
 
         double dx = player.x - e.x;
@@ -525,6 +533,7 @@ public class gamePanel extends JPanel {
         e.x -= nx * force;
         e.y -= ny * force;
     }
+    // keeps enemies inside the room/screen dimensions
     private void clampEnemyToScreen(Enemy e) {
         int padding = 0;
 
@@ -539,6 +548,7 @@ public class gamePanel extends JPanel {
             e.y = getHeight() - e.size - padding;
         }
     }
+    //dash ability
     private void performDash() {
     	System.out.println("DASH PRESSED");
         if (!player.abilities.contains("DASH")) return;
@@ -557,13 +567,15 @@ public class gamePanel extends JPanel {
         int newY = player.y + dy;
 
         int padding = 5;
-
+        
+        //clamps position to keep player from going off screen
         newX = Math.max(padding, Math.min(newX, getWidth() - PLAYER_SIZE - padding));
         newY = Math.max(padding, Math.min(newY, getHeight() - PLAYER_SIZE - padding));
 
         player.x = newX;
         player.y = newY;
     }
+    // makes it display abilities during ability selection
     private String getAbilityDisplayText(String ability) {
 
         switch (ability) {
@@ -579,6 +591,10 @@ public class gamePanel extends JPanel {
                 return ability;
         }
     }
+    /*
+     * calls this method once this panel is added to screen.
+     * Used for the restart screen and makes it work with the binds.
+     */
     @Override
     public void addNotify() {
         super.addNotify();
@@ -595,6 +611,15 @@ public class gamePanel extends JPanel {
             }
         });
     }
+    /*
+     * Rendering:
+     * 1. Background
+     * 2. Grid
+     * 3. Player
+     * 4. Enemies
+     * 5. Projectiles
+     * 6. UI
+     */
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g); 
