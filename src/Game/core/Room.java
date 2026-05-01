@@ -1,0 +1,40 @@
+/*
+Joshua Calderon
+Carlos Lopez 
+Michael Coker
+04/28/2026
+Final Project
+*/
+
+package Game.core;
+
+import java.awt.Color;
+import java.util.ArrayList;
+
+public class Room {
+
+    public int id;
+    public boolean visited;
+
+    // visuals
+    public Color backgroundColor = Color.GRAY;
+
+    // gameplay elements (expand later)
+    public ArrayList<String> enemies = new ArrayList<>();
+    public ArrayList<String> items = new ArrayList<>();
+
+    // optional flags
+    public boolean hasWater = false;
+    public boolean isSafeZone = false;
+
+    // connections
+    public Room left, right, up, down;
+
+    public Room(int id) {
+        this.id = id;
+    }
+    public void reset() {
+        enemies.clear();   // if room owns enemies
+        visited = false;   // example flag
+    }
+}
